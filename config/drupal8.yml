@@ -4,7 +4,6 @@ imports:
     - { resource: "%vendor_dir%/rector/rector/config/level/code-quality/code-quality.yaml" }
     - { resource: "%vendor_dir%/rector/rector/config/level/dead-code/dead-code.yaml" }
     - { resource: "%vendor_dir%/rector/rector/config/level/phpstan/phpstan.yaml" }
-    - { resource: "%vendor_dir%/rector/rector/config/level/solid/solid.yaml" }
 
 parameters:
     exclude_rectors:
@@ -69,9 +68,6 @@ parameters:
         #         by "Rector\PHPStan\Rector\Assign\PHPStormVarAnnotationRector", due to:
         #         "".
         - Rector\PHPStan\Rector\Assign\PHPStormVarAnnotationRector
-
-        # Disabled because final classes are not 1st class citizens in Drupal 8 (core) yet.
-        - Rector\SOLID\Rector\Class_\FinalizeClassesWithoutChildrenRector
 
     Drupal8Rector\Rector\Property\PropertyToMethodCallRector:
         # Traits with properties that can be null therefore it is safer to call
