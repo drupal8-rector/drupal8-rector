@@ -3,9 +3,12 @@
 namespace Drupal8Rector\Rector\Deprecation;
 
 use Drupal8Rector\Utility\TraitsByClassHelperTrait;
+use PhpParser\BuilderFactory;
+use PhpParser\Comment\Doc;
 use PhpParser\Node;
 use Rector\Exception\ShouldNotHappenException;
 use Rector\NodeTypeResolver\Node\AttributeKey;
+use Rector\PhpParser\Node\Manipulator\ClassManipulator;
 use Rector\Rector\AbstractRector;
 use Rector\RectorDefinition\RectorDefinition;
 
@@ -53,10 +56,19 @@ final class UrlGeneratorTraitRector extends AbstractRector
     private $addUrlGeneratorProperty;
 
     /**
+     * @var \Rector\PhpParser\Node\Manipulator\ClassManipulator
+     */
+    private $classManipulator;
+
+    /**
      * UrlGeneratorTraitRector constructor.
      *
+     * @param \Rector\PhpParser\Node\Manipulator\ClassManipulator $classManipulator
+     *   The class manipulator.
+     * @param \PhpParser\BuilderFactory $builderFactory
+     *   The builder factory.
      * @param bool $replaceWithFqn
-     *   Whether to replace depreocated methods with fully qualified method
+     *   Whether to replace deprecated methods with fully qualified method
      *   names or not. If it is false this rector adds new imports to all
      *   classes that used the replaced trait - even if the trait method was
      *   in use in the class. An external tool (for example PHPCBF) should
@@ -65,8 +77,10 @@ final class UrlGeneratorTraitRector extends AbstractRector
      *   Add urlGenerator property to classes that used UrlGeneratorTrait.
      *   Disabled by default because it requires more deep clean-up.
      */
-    public function __construct(bool $replaceWithFqn = false, bool $addUrlGeneratorProperty = false)
+    public function __construct(ClassManipulator $classManipulator, BuilderFactory $builderFactory, bool $replaceWithFqn = false, bool $addUrlGeneratorProperty = false)
     {
+        $this->classManipulator = $classManipulator;
+        $this->builderFactory = $builderFactory;
         $this->replacementClassesNames = [
             self::URL_CLASS_FQCN => $replaceWithFqn ? new Node\Name\FullyQualified(self::URL_CLASS_FQCN) : new Node\Name('Url'),
             self::REDIRECT_RESPONSE_FQCN => $replaceWithFqn ? new Node\Name\FullyQualified(self::REDIRECT_RESPONSE_FQCN) : new Node\Name('RedirectResponse'),
@@ -101,8 +115,9 @@ final class UrlGeneratorTraitRector extends AbstractRector
             $classNode = null;
             $urlClassExists = false;
             $responseClassExists = false;
+            $urlGeneratorTraitStmtId = null;
             // Probably the last stmt is the class.
-            foreach (array_reverse($node->stmts) as $stmt) {
+            foreach (array_reverse($node->stmts, true) as $stmt_id => $stmt) {
                 // Exit from loop as early as we can.
                 if ($classNode && $urlClassExists && $responseClassExists) {
                     break;
@@ -114,6 +129,8 @@ final class UrlGeneratorTraitRector extends AbstractRector
                             $urlClassExists = true;
                         } elseif (self::REDIRECT_RESPONSE_FQCN === (string) $use->name) {
                             $responseClassExists = true;
+                        } elseif (self::REPLACED_TRAIT_FQN === $this->getName($use)) {
+                            $urlGeneratorTraitStmtId = $stmt_id;
                         }
                     }
                 } elseif ($stmt instanceof Node\Stmt\Class_) {
@@ -121,49 +138,28 @@ final class UrlGeneratorTraitRector extends AbstractRector
                 }
             }
             // Ignore interfaces, etc.
-            if ($classNode && $this->isTraitInUse((string) $classNode->namespacedName)) {
-                // This adds these namespaces to all files even if no method
-                // is called from these classes. An external tool should
-                // optimize and remove created unnecessary imports.
+            if ($classNode && null !== $urlGeneratorTraitStmtId) {
+                unset($node->stmts[$urlGeneratorTraitStmtId]);
                 if (!$urlClassExists) {
-                    array_unshift($node->stmts, new Node\Stmt\Use_([new Node\Stmt\UseUse(new Node\Name\FullyQualified(self::URL_CLASS_FQCN))]));
+                    array_unshift($node->stmts, new Node\Stmt\Use_([new Node\Stmt\UseUse(new Node\Name(self::URL_CLASS_FQCN))]));
                 }
                 if (!$responseClassExists) {
-                    array_unshift($node->stmts, new Node\Stmt\Use_([new Node\Stmt\UseUse(new Node\Name\FullyQualified(self::REDIRECT_RESPONSE_FQCN))]));
+                    array_unshift($node->stmts, new Node\Stmt\Use_([new Node\Stmt\UseUse(new Node\Name(self::REDIRECT_RESPONSE_FQCN))]));
                 }
             }
         } elseif ($node instanceof Node\Stmt\Class_ && $this->addUrlGeneratorProperty) {
-            if ($this->isTraitInUse($node->namespacedName)) {
-                $hasUrlGeneratorProperty = false;
-                $firstPropertyPosition = null;
-                foreach ($node->stmts as $i => $stmt) {
-                    if ($stmt instanceof Node\Stmt\Property) {
-                        if (null === $firstPropertyPosition) {
-                            $firstPropertyPosition = $i;
-                        }
-                        foreach ($stmt->props as $property) {
-                            if ('urlGenerator' === (string) $property->name) {
-                                $hasUrlGeneratorProperty = true;
-                                break 2;
-                            }
-                        }
-                    }
-                }
-
-                if (!$hasUrlGeneratorProperty) {
-                    $urlGeneratorProperty = new Node\Stmt\Property(Node\Stmt\Class_::MODIFIER_PROTECTED, [new Node\Stmt\PropertyProperty(new Node\VarLikeIdentifier('urlGenerator'))]);
-                    if (null === $firstPropertyPosition) {
-                        array_unshift($node->stmts, $urlGeneratorProperty);
-                    } else {
-                        $node->stmts = array_merge(array_slice($node->stmts, 0, $firstPropertyPosition), [$urlGeneratorProperty], array_slice($node->stmts, $firstPropertyPosition));
-                    }
-                }
+            if ($this->isTraitInUse($node) && null === $this->classManipulator->getProperty($node, 'urlGenerator')) {
+                $property = $this->builderFactory->property('urlGenerator')
+                    ->makeProtected()
+                    ->setDocComment(new Doc(sprintf('/**%s * The url generator.%s * %s * @var \Drupal\Core\Routing\UrlGeneratorInterface%s */', PHP_EOL, PHP_EOL, PHP_EOL, PHP_EOL)))
+                    ->getNode();
+                $this->classManipulator->addAsFirstMethod($node, $property);
             }
         } elseif ($node instanceof Node\Stmt\TraitUse) {
             $rekey = false;
-            foreach ($node->traits as $id => $trait) {
+            foreach ($node->traits as $stmt_id => $trait) {
                 if (self::REPLACED_TRAIT_FQN === (string) $trait) {
-                    unset($node->traits[$id]);
+                    unset($node->traits[$stmt_id]);
                     $rekey = true;
                 }
             }
@@ -232,12 +228,12 @@ final class UrlGeneratorTraitRector extends AbstractRector
     private function processMethodCall(Node\Expr\MethodCall $node): ?Node\Expr
     {
         $result = null;
-        $className = $node->getAttribute(AttributeKey::CLASS_NAME);
+        $classNode = $node->getAttribute(AttributeKey::CLASS_NODE);
         // Ignore procedural code because traits can not be used there.
-        if (null === $className) {
+        if (null === $classNode || !$classNode instanceof Node\Stmt\Class_) {
             return $result;
         }
-        if ($this->isTraitInUse($className)) {
+        if ($this->isTraitInUse($classNode)) {
             $method_name = $node->name->name;
             if (in_array($method_name, $this->getMethodsByTrait())) {
                 if ('redirect' === $method_name) {
@@ -273,12 +269,12 @@ final class UrlGeneratorTraitRector extends AbstractRector
     }
 
     /**
-     * @param string $fqcn
+     * @param string $node
      *
      * @return bool
      */
-    private function isTraitInUse(string $fqcn): bool
+    private function isTraitInUse(Node\Stmt\Class_ $node): bool
     {
-        return in_array(self::REPLACED_TRAIT_FQN, $this->getTraitsByClass($fqcn));
+        return in_array(self::REPLACED_TRAIT_FQN, $this->getTraitsByClass($this->getName($node)));
     }
 }
