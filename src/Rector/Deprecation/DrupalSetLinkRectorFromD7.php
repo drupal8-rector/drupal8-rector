@@ -27,14 +27,24 @@ final class DrupalSetLinkRectorFromD7 extends AbstractRector
   public function refactor(Node $node): ?Node
   {
     /** @var Node\Expr\FuncCall $node */
-    if ($node->name instanceof Node\Name && 'l' === (string)$node->name) {
-      // Getting getComments() error here.
-      $uriArgs = [$node->args[1]->value->value];
-      $node = new Node\Expr\StaticCall(new Node\Name('Url'), 'fromUri', $uriArgs);
-      $methodArgs = [$node->args[0]];
-      $node = new Node\Expr\StaticCall(new Node\Name('Link'), 'fromTextAndUrl', $methodArgs);
+    if ($node instanceof Node\Expr\FuncCall) {
+      if ($node->name instanceof Node\Name\FullyQualified && $node->name->parts[0] === 'l') {
+        if (strpos($node->args[1]->value->value, 'http') > -1) {
+          $url_pre = '';
+        }
+        else {
+          $url_pre = 'internal:/';
+        }
+        $url_args[0] = new Node\Arg(new Node\Scalar\String_($url_pre . $node->args[1]->value->value));
+        $url_namespace = new Node\Name\FullyQualified('Drupal\Core\Url');
+        $url_call = new Node\Expr\StaticCall($url_namespace, 'fromUri', $url_args);
+        $link_args[0] = $node->args[0];
+        $link_args[1] = new Node\Arg($url_call);
+        $link_namespace = new Node\Name\FullyQualified('Drupal\Core\Link');
+        $link_static = new Node\Expr\StaticCall($link_namespace, 'fromTextAndUrl', $link_args);
+        $node = new Node\Expr\MethodCall($link_static, 'toString');
+      }
     }
-
     return $node;
   }
 
