@@ -21,9 +21,6 @@ final class DrupalGetTRector extends AbstractRector
       Node\Expr\Variable::class,
       Node\Expr\Assign::class,
       Node\Stmt\Function_::class,
-      Node\Stmt\Use_::class,
-      Node\Stmt\UseUse::class,
-      Node\Stmt\Nop::class,
     ];
   }
 
