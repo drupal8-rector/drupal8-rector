@@ -14,3 +14,4 @@ parameters:
 
 # Contains automatic fixes for some deprecations introduced in Drupal 8.7.
 services:
+    Drupal8Rector\Rector\Deprecation\FilePrepareDirectoryRector: ~
