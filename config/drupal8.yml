@@ -102,3 +102,5 @@ services:
 
     Drupal8Rector\Rector\Property\PropertyToMethodCallRector:
         arguments: ['%Drupal8Rector\Rector\Property\PropertyToMethodCallRector%']
+
+    Drupal8Rector\Rector\Deprecation\FormatDateRector: ~
