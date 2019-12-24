@@ -95,11 +95,11 @@ final class PropertyNameVariableNameRector extends AbstractRector
                 <<<'CODE_SAMPLE'
 class Foo {
     protected $variable_one;
-    
+
     public __constructor(string $inputVariable) {
         $this->variable_one = $inputVariable;
     }
-    
+
     public function doSomething(string $inputVariable) {
         $meaningOfLife = 42;
         $this->variable_one = $inputVariable;
@@ -110,11 +110,11 @@ CODE_SAMPLE
                 <<<'CODE_SAMPLE'
 class Foo {
     protected $variableOne;
-    
+
     public __constructor(string $input_variable) {
         $this->variableOne = $input_variable;
     }
-    
+
     public function doSomething(string $input_variable) {
         $meaning_of_life = 42;
         $this->variableOne = $input_variable;
@@ -139,11 +139,11 @@ CODE_SAMPLE
                 <<<'CODE_SAMPLE'
 class Foo extend Bar\Baz {
     protected $variable_one;
-    
+
     public __constructor(string $inputVariable) {
         $this->variable_one = $inputVariable;
     }
-    
+
     public function doSomething(string $inputVariable) {
         $meaningOfLife = 42;
         $this->variable_one = $inputVariable;
@@ -154,11 +154,11 @@ CODE_SAMPLE
                 <<<'CODE_SAMPLE'
 class Foo extend Bar\Baz {
     protected $variable_one;
-    
+
     public __constructor(string $input_variable) {
         $this->variable_one = $input_variable;
     }
-    
+
     public function doSomething(string $input_variable) {
         $meaning_of_life = 42;
         $this->variable_one = $input_variable;
@@ -179,7 +179,7 @@ CODE_SAMPLE
     {
         foreach ($this->doNotRenameProperties as $classOrInterface) {
             $classNode = $property->getAttribute(AttributeKey::CLASS_NODE);
-            if (null === $classNode || $this->isType($classNode, $classOrInterface)) {
+            if (null === $classNode || $this->isObjectType($classNode, $classOrInterface)) {
                 return;
             }
         }
@@ -205,7 +205,7 @@ CODE_SAMPLE
                         return;
                     }
                     foreach ($this->doNotRenameProperties as $classOrInterface) {
-                        if ($this->isType($node, $classOrInterface)) {
+                        if ($this->isObjectType($node, $classOrInterface)) {
                             return;
                         }
                     }
