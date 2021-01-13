@@ -31,6 +31,13 @@ parameters:
   exclude_paths:
     - '*/tests/*'
     - '*/Tests/*'
+  file_extensions:
+    - module
+    - theme
+    - install
+    - profile
+    - inc
+    - engine
 
 services:
     # Optionally enable ReturnTypeDeclarationRector rector if your
