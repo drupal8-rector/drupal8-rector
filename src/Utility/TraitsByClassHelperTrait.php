@@ -10,6 +10,9 @@ trait TraitsByClassHelperTrait
     /**
      * Cached associative array where keys are class FQCNs and values are trait FQCNs.
      *
+     * TODO Maybe this should not be cached or should be cached in a shared storage that could be
+     * flushed when a trait gets added or removed to a class.
+     *
      * @var string[][]
      */
     protected $_traitsByClasses = [];

@@ -65,7 +65,6 @@ services:
     Drupal8Rector\Rector\Deprecation\ConstToClassConstFetchRector:
         arguments: ['%Drupal8Rector\Rector\Deprecation\ConstToClassConstFetchRector%']
 
-    # Do not forget to optimize imports after this rector.
     Drupal8Rector\Rector\Deprecation\UrlGeneratorTraitRector: ~
 
     Drupal8Rector\Rector\Deprecation\DrupalSetMessageRector: ~
