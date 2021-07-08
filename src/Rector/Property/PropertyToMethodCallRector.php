@@ -71,7 +71,7 @@ CODE_SAMPLE
             if (null === $classNode) {
                 return $node;
             }
-            if ($this->isType($classNode, $type)) {
+            if ($this->isObjectType($classNode, $type)) {
                 $propertyName = (string) $node->name->name;
                 if (array_key_exists($propertyName, $propertyToMethod)) {
                     // Ignore non method calls.
